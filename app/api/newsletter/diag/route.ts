@@ -71,24 +71,37 @@ export async function GET(req: Request) {
   const resendKeyLen = (process.env.RESEND_API_KEY || '').length
   const cronSecretLen = (process.env.CRON_SECRET || '').length
 
-  // Try a live Supabase round-trip if config looks plausible
+  // Try a live Supabase round-trip — the client now normalizes URLs internally,
+  // so we always probe if configured (no precondition on formatLooksValid).
   let supabaseProbe: {
     ok: boolean
     error?: string
     rowCount?: number
-  } = { ok: false }
+    activeSubs?: number
+  } = { ok: false, error: 'not configured' }
 
-  if (isSupabaseConfigured() && supabaseUrl.formatLooksValid) {
+  if (isSupabaseConfigured()) {
     const client = getSupabaseServer()
     if (client) {
       try {
+        // Total count
         const { count, error } = await client
           .from('newsletter_subscribers')
           .select('*', { count: 'exact', head: true })
         if (error) {
           supabaseProbe = { ok: false, error: `${error.code || ''} ${error.message}`.trim() }
         } else {
-          supabaseProbe = { ok: true, rowCount: count ?? 0 }
+          // Active count (confirmed & not unsubscribed)
+          const { count: activeCount } = await client
+            .from('newsletter_subscribers')
+            .select('*', { count: 'exact', head: true })
+            .eq('confirmed', true)
+            .is('unsubscribed_at', null)
+          supabaseProbe = {
+            ok: true,
+            rowCount: count ?? 0,
+            activeSubs: activeCount ?? 0,
+          }
         }
       } catch (e) {
         supabaseProbe = { ok: false, error: e instanceof Error ? e.message : String(e) }
