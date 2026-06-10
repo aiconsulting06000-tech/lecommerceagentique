@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ARTICLE_CONTENT, type ArticleContent } from './articles-content'
+import ReadingProgress from '../../components/ReadingProgress'
 
 type Params = Promise<{ slug: string }>
 
@@ -178,6 +179,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <ReadingProgress />
       {/* Header */}
       <header
         style={{

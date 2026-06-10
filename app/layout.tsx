@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import CookieBanner from './components/CookieBanner'
+import BackToTop from './components/BackToTop'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -79,8 +81,10 @@ export default function RootLayout({
       </head>
       <body>
         {children}
+        <BackToTop />
         <CookieBanner />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
