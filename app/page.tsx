@@ -1,5 +1,10 @@
 import Link from 'next/link'
 import NewsletterForm from './components/NewsletterForm'
+import NewsFeed from './components/NewsFeed'
+import { fetchVisibleNews } from '../lib/news'
+
+// Re-fetch the home every 10 min so the news feed stays fresh for bots
+export const revalidate = 600
 
 // ════════════════════════════════════════════════════
 // DONNÉES
@@ -222,7 +227,8 @@ const VEILLE = [
 // PAGE
 // ════════════════════════════════════════════════════
 
-export default function HomePage() {
+export default async function HomePage() {
+  const newsEntries = await fetchVisibleNews(5)
   return (
     <>
       <main>
@@ -248,6 +254,7 @@ export default function HomePage() {
             </Link>
             <nav style={{ display: 'flex', gap: 22, alignItems: 'center', fontSize: 13, fontWeight: 500 }}>
               <a href="#definition" style={{ color: 'var(--gray-1)', textDecoration: 'none' }}>Définition</a>
+              <Link href="/veille" style={{ color: 'var(--gray-1)', textDecoration: 'none' }}>Veille</Link>
               <a href="#etudes" style={{ color: 'var(--gray-1)', textDecoration: 'none' }}>Études</a>
               <a href="#conformite" style={{ color: 'var(--gray-1)', textDecoration: 'none' }}>Conformité</a>
               <a href="#modes" style={{ color: 'var(--gray-1)', textDecoration: 'none' }}>Modes</a>
@@ -366,6 +373,11 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        <div className="divider-glow" />
+
+        {/* ════════════ NEWS — Veille quotidienne ════════════ */}
+        <NewsFeed entries={newsEntries} />
 
         <div className="divider-glow" />
 
