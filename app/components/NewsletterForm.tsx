@@ -13,16 +13,49 @@ export default function NewsletterForm() {
       return
     }
     setStatus('submitting')
-    // V1.0: capture locale uniquement, backend à venir
+
     try {
-      const existing = JSON.parse(localStorage.getItem('lca-newsletter-leads') || '[]')
-      existing.push({ email, ts: new Date().toISOString() })
-      localStorage.setItem('lca-newsletter-leads', JSON.stringify(existing))
-      await new Promise((r) => setTimeout(r, 600))
-      setStatus('success')
-      setEmail('')
+      // Primary path: POST to backend (Supabase + Resend double opt-in)
+      const res = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'lecommerceagentique.fr' }),
+      })
+
+      // Backend always returns 200 (or 429 if rate-limited).
+      // 200 = OK (anti-enumeration: same response for valid / invalid / existing).
+      if (res.ok) {
+        // Soft-store locally for analytics, harmless duplicate vs Supabase
+        try {
+          const existing = JSON.parse(localStorage.getItem('lca-newsletter-leads') || '[]')
+          existing.push({ email, ts: new Date().toISOString() })
+          localStorage.setItem('lca-newsletter-leads', JSON.stringify(existing))
+        } catch {
+          /* ignore */
+        }
+        setStatus('success')
+        setEmail('')
+        return
+      }
+
+      if (res.status === 429) {
+        setStatus('error')
+        return
+      }
+
+      // Other non-OK: fall back to local capture
+      throw new Error('non-ok')
     } catch {
-      setStatus('error')
+      // Fallback: pure local capture (if backend unavailable)
+      try {
+        const existing = JSON.parse(localStorage.getItem('lca-newsletter-leads') || '[]')
+        existing.push({ email, ts: new Date().toISOString(), fallback: true })
+        localStorage.setItem('lca-newsletter-leads', JSON.stringify(existing))
+        setStatus('success')
+        setEmail('')
+      } catch {
+        setStatus('error')
+      }
     }
   }
 
@@ -39,9 +72,10 @@ export default function NewsletterForm() {
             fontSize: 15,
             textAlign: 'center',
             fontWeight: 600,
+            lineHeight: 1.5,
           }}
         >
-          ✓ Bienvenue. Le prochain brief arrive lundi 8h.
+          ✓ Merci. Vérifiez votre boîte mail pour confirmer.
         </div>
       ) : (
         <>
@@ -55,6 +89,8 @@ export default function NewsletterForm() {
               }}
               placeholder="votre@email.com"
               required
+              maxLength={254}
+              autoComplete="email"
               style={{
                 flex: '1 1 240px',
                 padding: '14px 18px',
@@ -78,7 +114,7 @@ export default function NewsletterForm() {
           </div>
           {status === 'error' && (
             <p style={{ fontSize: 12, color: '#f87171', marginTop: 8 }}>
-              Email invalide ou enregistrement échoué.
+              Email invalide ou trop de tentatives. Réessayez dans une minute.
             </p>
           )}
           <p style={{ fontSize: 11, color: 'var(--gray-3)', marginTop: 12, lineHeight: 1.5 }}>
